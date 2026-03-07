@@ -1,0 +1,14 @@
+## Interface: 120001
+## Title: DungeonCheatsheet
+## Notes: Dungeon Target & Note Memo
+## Author: Leo
+## Version: 1.0
+## SavedVariables: DungeonCheatsheetDB
+
+embeds.xml
+
+Locales.lua
+Core.lua
+Window.lua
+Editor.lua
+Settings.lua

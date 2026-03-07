@@ -1,0 +1,120 @@
+local addonName, addon = ...
+
+-- 创建一个多语言表 L。
+-- 这里的魔法逻辑是：如果请求的 key 在表里找不到（比如在英文客户端下），它会直接返回 key 本身的文本。
+local L = setmetatable({}, {
+    __index = function(t, k)
+        local v = tostring(k)
+        rawset(t, k, v)
+        return v
+    end
+})
+addon.L = L
+
+local locale = GetLocale()
+
+-- 如果客户端是简体或繁体中文，则加载中文词典覆盖默认的英文
+if locale == "zhCN" or locale == "zhTW" then
+    -- Settings.lua 翻译
+    L["Quick Actions"] = "快捷操作"
+    L["Open Dungeon & Target Editor"] = "打开 副本与目标编辑器"
+    L[" Type /dcs to open this settings page directly."] = " 输入 /dcs 可以直接打开本设置页面。"
+    L["Behavior & Interaction"] = "行为与交互"
+    L["Enable Smart Expand (Auto-expand notes based on your current target/boss)"] = "开启智能展开 (根据你当前选中的目标/首领，自动展开对应的笔记。需要填写首领战ID)"
+    L["Appearance & Testing"] = "外观与测试"
+    L["Select Font"] = "选择字体"
+    L["System Default (Quest Font)"] = "系统默认 (任务字体)"
+    L["Damage Text"] = "伤害数字"
+    L["Chat Frame Bold"] = "聊天框黑体"
+    L["Font Size"] = "字体大小"
+    L["Collapsed Alpha"] = "折叠时透明度"
+    L["Background Color & Alpha"] = "背景颜色与透明度"
+    L["Show Test Window on Screen (For dragging and previewing)"] = "在屏幕上显示测试窗口 (方便拖动和预览)"
+    L["Close Test Window"] = "关闭测试窗口"
+    L["[Test Window, Please Drag Me]"] = "【测试窗口，请拖动我】"
+    L["Test Target 1"] = "测试目标1"
+    L["This is a test note.\nYou can drag the window by holding the top title bar."] = "这是一条测试笔记。\n你可以按住最上方的标题框来拖动位置。"
+    L["Test Target 2"] = "测试目标2"
+    L["Click to test collapse"] = "点击折叠测试"
+
+    -- Editor.lua 翻译
+    L["DungeonCheatsheet - Dungeon & Target Editor"] = "DungeonCheatsheet - 副本与目标编辑器"
+    L["[+ New Dungeon]"] = "[+ 新建副本]"
+    L["[<=> Import & Export]"] = "[<=> 导入与导出]"
+    L["Unnamed Dungeon"] = "未命名副本"
+    L["[Hidden]"] = "[未隐]"
+    L["Unnamed Target"] = "未命名目标"
+    L["Data Import & Export"] = "数据导入与导出"
+    L["Batch Export (Generate code to share with friends)"] = "批量导出 (生成代码分享给好友)"
+    L["No dungeons available for export."] = "当前没有任何副本可供导出。"
+    L["Select All / Deselect All"] = "全选 / 取消全选"
+    L["Generate Export Code"] = "生成导出代码"
+    L["Generated Export Code:"] = "生成的导出代码："
+    L["Please select at least one dungeon to export above!"] = "请先在上方勾选至少一个要导出的分类！"
+    L["Import Dungeon (Paste code shared by friends)"] = "导入副本 (粘贴好友分享的代码)"
+    L["Paste code here:"] = "在此处粘贴代码："
+    L["Verify & Import"] = "验证并导入"
+    L["Import successful! Added %d dungeons."] = "导入成功！已成功添加 %d 个副本。"
+    L["Import failed: "] = "导入失败："
+    L["New Dungeon"] = "新建副本"
+    L["Dungeon Name"] = "副本名称"
+    L["Dungeon ID (Optional)"] = "副本ID (可选)"
+    L["Print current dungeon info in chat (Manual input required)"] = "在聊天框打印当前副本信息 (需手动输入)"
+    L["Current Dungeon: "] = "当前副本: "
+    L[" | Dungeon ID: "] = " | 副本ID: "
+    L["You are not currently in a dungeon"] = "你当前不在副本中"
+    L["Save & Add Dungeon"] = "保存并添加副本"
+    L["Please enter a dungeon name!"] = "请输入副本名称！"
+    L["Edit Target: "] = "编辑目标: "
+    L["Unnamed"] = "未命名"
+    L["Target Name"] = "目标名称"
+    L["Delete Target"] = "删除此目标"
+    L["Text Note (Auto-saved)"] = "文本笔记 (输入后自动保存)"
+    L["Manage Dungeon"] = "管理副本"
+    L["Dungeon ID"] = "副本ID"
+    L["Print current dungeon info in chat (Manual modify required)"] = "在聊天框打印当前副本信息 (需手动修改)"
+    L["Activate this dungeon (Uncheck to hide on screen)"] = "激活此副本 (取消勾选将在屏幕上隐藏)"
+    L["+ Add New Target to this Dungeon"] = "+ 在此副本中新增目标"
+    L["New Target"] = "新目标"
+    L["Delete this Dungeon & All Contents"] = "删除此副本及其所有内容"
+    L["Profiles"] = "配置文件"
+    L["Encounter ID (Optional)"] = "首领战ID (可通过DBM/BigWigs等插件查找，帮助智能展开)"
+    L["Are you sure you want to delete this target?"] = "确定要删除这个目标吗？"
+    L["Are you sure you want to delete this dungeon and all its contents?"] = "确定要删除这个副本及其所有内容吗？此操作无法撤销！"
+    L["Created successfully!"] = "创建成功！"
+    L["Lock Window (Prevent dragging)"] = "锁定窗口 (防止意外拖动)"
+    L["Window is now LOCKED."] = "窗口已锁定。"
+    L["Window is now UNLOCKED."] = "窗口已解锁。"
+    L["Only allow one expanded item at a time"] = "一次只允许展开一个条目"
+    L["Settings"] = "设置"
+    L["Editor"] = "编辑器"
+
+    -- 分类相关翻译
+    L["[+ New Category]"] = "[+ 新建分类]"
+    L["New Category"] = "新建分类"
+    L["Category Name"] = "分类名称"
+    L["Save & Add Category"] = "保存并添加分类"
+    L["Please enter a category name!"] = "请输入分类名称！"
+    L["Manage Category"] = "管理分类"
+    L["Delete this Category & All Contents"] = "删除此分类及其所有内容"
+    L["Are you sure you want to delete this category and all its contents?"] = "确定要删除这个分类及其所有内容吗？此操作无法撤销！"
+    L["Unnamed Category"] = "未命名分类"
+    L["Default"] = "默认"
+    L["Move to Category"] = "移动到分类"
+    L["Difficulty"] = "难度"
+    L["Instance Type"] = "副本类型"
+    L["Any (No Filter)"] = "不限 (不筛选)"
+    L["Dungeon"] = "地下城"
+    L["Raid"] = "团队副本"
+    L["Any Difficulty"] = "不限难度"
+    L["Normal"] = "普通"
+    L["Heroic"] = "英雄"
+    L["Mythic"] = "史诗"
+    L["Mythic+"] = "史诗+"
+    L["LFR"] = "随机"
+    L["Timewalking"] = "时光漫游"
+    L[" | Difficulty: "] = " | 难度: "
+    L["Import successful! Added %d categories."] = "导入成功！已成功添加 %d 个分类。"
+    L["Import successful! Added %d dungeons to '%s'."] = "导入成功！已添加 %d 个副本到分类 '%s'。"
+    L["No categories available for export."] = "当前没有任何分类可供导出。"
+end
