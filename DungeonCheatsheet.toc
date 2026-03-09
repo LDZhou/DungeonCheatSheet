@@ -10,5 +10,6 @@ embeds.xml
 Locales.lua
 Core.lua
 Window.lua
+GuideData.lua
 Editor.lua
 Settings.lua

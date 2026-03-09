@@ -120,4 +120,6 @@ if locale == "zhCN" or locale == "zhTW" then
     L["Left-click to open settings"] = "左键点击打开设置"
     L["Right-click to drag"] = "按住右键拖拽"
     L["Show Minimap Button"] = "显示小地图按钮"
+    L["Click to import Midnight Season 1 Mythic+ Boss Guide"] = "点击导入至暗之夜第一赛季大秘境极简Boss攻略"
+    L["Click to import Midnight 8 Mythic Dungeons Boss Guide"] = "点击导入至暗之夜8个史诗难度副本极简Boss攻略"
 end

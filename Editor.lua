@@ -456,6 +456,110 @@ function addon:OpenEditor()
             end)
             scroll:AddChild(addBtn)
 
+            -- 添加几行间隙
+            local spacer = AceGUI:Create("Label")
+            spacer:SetText("\n\n\n")
+            spacer:SetFullWidth(true)
+            scroll:AddChild(spacer)
+
+            local importS1Btn = AceGUI:Create("Button")
+            importS1Btn:SetText(L["Click to import Midnight Season 1 Mythic+ Boss Guide"])
+            importS1Btn:SetFullWidth(true)
+            importS1Btn:SetCallback("OnClick", function()
+                local locale = GetLocale()
+                local codeStr = ""
+                
+                -- 根据客户端语言，读取刚刚我们在 GuideData.lua 中定义的字符串变量
+                if locale == "zhCN" or locale == "zhTW" then
+                    codeStr = addon.MidnightS1_CN or ""
+                else
+                    codeStr = addon.MidnightS1_EN or ""
+                end
+
+                if codeStr == "" then
+                    print("|cffff0000[DungeonCheatsheet]|r 导入数据为空，请确保已在代码中填入攻略字符串。")
+                    return
+                end
+
+                -- 复用已有的 ParseImportCode 逻辑
+                local success, resultType, data = ParseImportCode(codeStr)
+                if success then
+                    if resultType == "categories" then
+                        for _, newCat in ipairs(data) do
+                            table.insert(addon.db.profile.categories, newCat)
+                        end
+                        print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d categories."], #data))
+                    else
+                        if #addon.db.profile.categories == 0 then
+                            table.insert(addon.db.profile.categories, { name = L["Default"], instances = {} })
+                        end
+                        local defaultCat = addon.db.profile.categories[1]
+                        for _, newInst in ipairs(data) do
+                            table.insert(defaultCat.instances, newInst)
+                        end
+                        print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d dungeons to '%s'."], #data, defaultCat.name))
+                    end
+                    -- 刷新左侧树形目录并触发检查
+                    exportSelections = {}
+                    frame:RefreshTree("new_cat")
+                    addon:CheckInstance()
+                else
+                    print("|cffff0000[DungeonCheatsheet]|r " .. L["Import failed: "] .. tostring(resultType))
+                end
+            end)
+            scroll:AddChild(importS1Btn)
+
+            -- ========== 新增：一键导入至暗之夜8个史诗副本攻略按钮 ==========
+            local locale = GetLocale()
+            -- 我们只在中文客户端下显示这个额外的按钮（根据你的需求）
+            if locale == "zhCN" or locale == "zhTW" then
+                -- 加一点小间隙区分按钮
+                local smallSpacer = AceGUI:Create("Label")
+                smallSpacer:SetText("\n")
+                smallSpacer:SetFullWidth(true)
+                scroll:AddChild(smallSpacer)
+
+                local importM0Btn = AceGUI:Create("Button")
+                importM0Btn:SetText(L["Click to import Midnight 8 Mythic Dungeons Boss Guide"])
+                importM0Btn:SetFullWidth(true)
+                importM0Btn:SetCallback("OnClick", function()
+                    -- 获取 M0 的数据
+                    local codeStr = addon.MidnightM0_CN or ""
+
+                    if codeStr == "" then
+                        print("|cffff0000[DungeonCheatsheet]|r 导入数据为空，请确保已在代码中填入攻略字符串。")
+                        return
+                    end
+
+                    local success, resultType, data = ParseImportCode(codeStr)
+                    if success then
+                        if resultType == "categories" then
+                            for _, newCat in ipairs(data) do
+                                table.insert(addon.db.profile.categories, newCat)
+                            end
+                            print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d categories."], #data))
+                        else
+                            if #addon.db.profile.categories == 0 then
+                                table.insert(addon.db.profile.categories, { name = L["Default"], instances = {} })
+                            end
+                            local defaultCat = addon.db.profile.categories[1]
+                            for _, newInst in ipairs(data) do
+                                table.insert(defaultCat.instances, newInst)
+                            end
+                            print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d dungeons to '%s'."], #data, defaultCat.name))
+                        end
+                        exportSelections = {}
+                        frame:RefreshTree("new_cat")
+                        addon:CheckInstance()
+                    else
+                        print("|cffff0000[DungeonCheatsheet]|r " .. L["Import failed: "] .. tostring(resultType))
+                    end
+                end)
+                scroll:AddChild(importM0Btn)
+            end
+            -- ==========================================================
+
+
         -- ========== 导入导出 ==========
         elseif group == "import_export" then
             local title = AceGUI:Create("Heading")
