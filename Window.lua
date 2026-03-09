@@ -2,12 +2,21 @@ local addonName, addon = ...
 
 local mainWindow = CreateFrame("Frame", "DungeonCheatsheetWindow", UIParent)
 mainWindow:SetSize(300, 400)
-mainWindow:SetPoint("RIGHT", -50, 0)
+mainWindow:SetPoint("RIGHT", -150, 0)
 mainWindow:SetMovable(true)
 mainWindow:EnableMouse(true)
 mainWindow:RegisterForDrag("LeftButton")
 mainWindow:SetScript("OnDragStart", mainWindow.StartMoving)
-mainWindow:SetScript("OnDragStop", mainWindow.StopMovingOrSizing)
+-- 当拖拽结束时，不仅停止移动，还要把新坐标存进数据库
+mainWindow:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    if addon.db then
+        local point, _, _, xOfs, yOfs = self:GetPoint()
+        addon.db.profile.settings.windowPoint = point
+        addon.db.profile.settings.windowX = xOfs
+        addon.db.profile.settings.windowY = yOfs
+    end
+end)
 mainWindow:SetResizable(true)
 mainWindow:SetResizeBounds(150, 50, 600, 800)
 
@@ -110,6 +119,8 @@ end
 -- 使用 OnUpdate 轮询 IsMouseOver，兼容子控件遮挡
 -- ==========================================
 local hoverWatcher = CreateFrame("Frame", nil, mainWindow)
+hoverWatcher:Hide()
+
 hoverWatcher:SetScript("OnUpdate", function(self, elapsed)
     self.timer = (self.timer or 0) + elapsed
     if self.timer < 0.1 then return end
@@ -127,30 +138,10 @@ hoverWatcher:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
--- ==========================================
--- 窗口大小改变时重新排版 (拖拽缩放时实时自适应)
--- ==========================================
-mainWindow:SetScript("OnSizeChanged", function(self, width, height)
-    -- 标题宽度跟随窗口
-    titleText:SetWidth(width - 20)
-    -- 只在有数据时才刷新排版
-    if addon.db and targetFrames[1] and targetFrames[1]:IsShown() then
-        -- 直接更新内容宽度和高度，避免递归调用完整 UpdateLayout
-        local currentY = -40
-        local db = addon.db.profile.settings
-        for i, frame in ipairs(targetFrames) do
-            if frame:IsShown() then
-                frame:SetWidth(width - 20)
-                if frame.isExpanded then
-                    local textHeight = frame.noteText:GetStringHeight()
-                    frame:SetHeight(30 + textHeight + 10)
-                end
-                currentY = currentY - frame:GetHeight() - 5
-            end
-        end
-        mainWindow:SetHeight(math.abs(currentY) + 10)
-    end
-end)
+mainWindow:HookScript("OnShow", function() hoverWatcher:Show() end)
+mainWindow:HookScript("OnHide", function() hoverWatcher:Hide() end)
+
+
 
 -- ==========================================
 -- 核心排版函数
@@ -164,17 +155,30 @@ local function UpdateLayout()
     titleText:SetWidth(windowWidth - 20)
 
     for i, frame in ipairs(targetFrames) do
-        if frame:IsShown() then
+        -- 【关键修复】使用 inUse 代替 IsShown() 判断
+        if frame.inUse then
+            frame:Show()
+            frame:ClearAllPoints()
             frame:SetPoint("TOPLEFT", 10, currentY)
             frame:SetWidth(windowWidth - 20)
             
             frame.titleBtn:GetFontString():SetFont(db.font, db.fontSize + 2, "OUTLINE")
             frame.noteText:SetFont(db.font, db.fontSize, "NONE")
+            frame.noteText:SetWidth(windowWidth - 40)
+            
+            -- 【黑科技】强制重新填入文本，迫使引擎基于最新宽度立即计算换行高度
+            frame.noteText:SetText(frame.targetData.note)
 
             if frame.isExpanded then
                 frame:SetAlpha(1.0)
                 frame.noteText:Show()
                 local textHeight = frame.noteText:GetStringHeight()
+                
+                -- 兜底保险：如果引擎还是犯病返回0，给个最低基础高度
+                if textHeight == 0 and frame.targetData.note and frame.targetData.note ~= "" then
+                    textHeight = db.fontSize * 2
+                end
+                
                 frame:SetHeight(30 + textHeight + 10)
             else
                 frame:SetAlpha(db.collapsedAlpha)
@@ -182,10 +186,28 @@ local function UpdateLayout()
                 frame:SetHeight(30)
             end
             currentY = currentY - frame:GetHeight() - 5
+        else
+            frame:Hide()
         end
     end
     mainWindow:SetHeight(math.abs(currentY) + 10)
 end
+
+-- ==========================================
+-- 窗口大小改变时重新排版 (拖拽缩放时实时自适应)
+-- ==========================================
+mainWindow:SetScript("OnSizeChanged", function(self, width, height)
+    -- 只有宽度发生变化时才重新排版（避免 SetHeight 导致的无限循环死锁）
+    if self.lastWidth ~= width then
+        self.lastWidth = width
+        -- 延迟一帧，彻底避开引擎渲染时差导致的文本重排版问题
+        C_Timer.After(0, function()
+            if addon.db and targetFrames[1] and targetFrames[1].inUse then
+                UpdateLayout() -- 直接复用主排版函数，不再写两遍逻辑
+            end
+        end)
+    end
+end)
 
 function addon:ShowWindow(instanceData)
     -- 从数据库恢复窗口宽度
@@ -193,9 +215,20 @@ function addon:ShowWindow(instanceData)
         mainWindow:SetWidth(addon.db.profile.settings.windowWidth)
     end
 
+    -- 【新增】从数据库恢复窗口位置
+    if addon.db and addon.db.profile.settings.windowPoint then
+        mainWindow:ClearAllPoints()
+        mainWindow:SetPoint(
+            addon.db.profile.settings.windowPoint, 
+            addon.db.profile.settings.windowX, 
+            addon.db.profile.settings.windowY
+        )
+    end
+
     titleText:SetText(addon:GetInstDisplayName(instanceData))
     
-    for _, f in ipairs(targetFrames) do f:Hide() end
+    -- 【关键修复】重置在用状态
+    for _, f in ipairs(targetFrames) do f.inUse = false end
     
     if instanceData.targets then
         for i, target in ipairs(instanceData.targets) do
@@ -225,6 +258,7 @@ function addon:ShowWindow(instanceData)
             end
             
             frame.targetData = target 
+            frame.inUse = true -- 【标记该框体正在被使用】
             frame.isExpanded = (i == 1)
             
             frame.titleBtn:SetScript("OnClick", function()
@@ -239,15 +273,13 @@ function addon:ShowWindow(instanceData)
             end)
             
             frame.titleBtn:SetText("> " .. target.name)
-            frame.noteText:SetText(target.note)
-            frame:Show()
         end
     end
     
-    UpdateLayout()
-    -- 显示窗口后同步锁定状态和锁图标视觉
-    UpdateLockVisual()
+    -- 【核心修复】必须先显示主窗口，再进行排版，确保坐标能正常锚定！
     mainWindow:Show()
+    UpdateLayout()
+    UpdateLockVisual()
 end
 
 function addon:HideWindow()
@@ -260,8 +292,9 @@ end
 function addon:SmartExpandTarget(unitName, encounterId)
     if not mainWindow:IsShown() or not unitName then return end
     
-    local success, safeName = pcall(string.lower, unitName)
-    if not success or type(safeName) ~= "string" or safeName == "" then return end
+    local safeName = unitName and strlower(unitName) or ""
+    if safeName == "" then return end
+
     
     for i, frame in ipairs(targetFrames) do
         if frame:IsShown() and frame.targetData then
@@ -271,7 +304,7 @@ function addon:SmartExpandTarget(unitName, encounterId)
             if tData.encounterId and tData.encounterId ~= "" and encounterId and tData.encounterId == tostring(encounterId) then
                 matchFound = true
             elseif tData.name and tData.name ~= "" then
-                local n1 = string.lower(tData.name)
+                local n1 = strlower(tData.name)
                 if string.find(n1, safeName, 1, true) or string.find(safeName, n1, 1, true) then
                     matchFound = true
                 end

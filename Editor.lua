@@ -67,8 +67,11 @@ end
 -- 创建两级难度选择控件，添加到 container 中
 -- currentDiffId: 当前已选的 difficultyId
 -- onChanged(diffId, shortName): 选择变化时的回调
-local function CreateDifficultyDropdowns(container, currentDiffId, onChanged)
-    local currentType = GetInstTypeFromDiffId(currentDiffId)
+local function CreateDifficultyDropdowns(container, currentType, currentDiffId, onChanged)
+    -- 如果当前没有记录类型，则尝试通过 diffId 反推（完美兼容旧数据）
+    if not currentType or currentType == "" then
+        currentType = GetInstTypeFromDiffId(currentDiffId)
+    end
 
     local typeDropdown = AceGUI:Create("Dropdown")
     typeDropdown:SetLabel(L["Instance Type"])
@@ -81,7 +84,6 @@ local function CreateDifficultyDropdowns(container, currentDiffId, onChanged)
     diffDropdown:SetLabel(L["Difficulty"])
     diffDropdown:SetRelativeWidth(0.5)
 
-    -- 根据当前类型设置难度列表
     local function UpdateDiffList(instType, keepValue)
         if instType == "dungeon" then
             diffDropdown:SetList(DUNGEON_DIFF_LIST, DUNGEON_DIFF_ORDER)
@@ -94,7 +96,6 @@ local function CreateDifficultyDropdowns(container, currentDiffId, onChanged)
             diffDropdown:SetValue(keepValue)
         else
             diffDropdown:SetValue("")
-            -- 不在这里调用 onChanged，等用户手动选难度时再触发
         end
     end
 
@@ -102,11 +103,14 @@ local function CreateDifficultyDropdowns(container, currentDiffId, onChanged)
     container:AddChild(diffDropdown)
 
     typeDropdown:SetCallback("OnValueChanged", function(_, _, val)
-        UpdateDiffList(val) -- 切换类型时重置难度
+        currentType = val -- 更新本地状态
+        UpdateDiffList(val)
+        -- 【关键】：类型改变时，连同新的类型和清空后的难度一起传给系统保存
+        onChanged(currentType, "", "") 
     end)
 
     diffDropdown:SetCallback("OnValueChanged", function(_, _, val)
-        onChanged(val, GetDiffShortName(val))
+        onChanged(currentType, val, GetDiffShortName(val))
     end)
 end
 
@@ -165,7 +169,7 @@ local function EncodeStr(str)
     if not str then return "" end
     str = tostring(str)
     str = str:gsub("%%", "%%P")
-    str = str:gsub(";", "%%S")
+    str = str:gsub(";", "%%S") -- 【恢复原样】你原本的设计才是对的，完美避开了冲突
     str = str:gsub("\n", "%%N")
     return str
 end
@@ -173,12 +177,12 @@ end
 local function DecodeStr(str)
     if not str then return "" end
     str = str:gsub("%%N", "\n")
-    str = str:gsub("%%S", ";")
+    str = str:gsub("%%S", ";") -- 【恢复原样】
     str = str:gsub("%%P", "%%")
     return str
 end
 
--- DCS4 格式：带分类层级 + 难度
+-- 恢复为 DCS4 格式：带分类层级 + 难度
 local function GenerateExportCode(catList)
     local parts = {"DCS4"}
     table.insert(parts, tostring(#catList))
@@ -201,18 +205,22 @@ local function GenerateExportCode(catList)
             end
         end
     end
-    return table.concat(parts, ";")
+    return table.concat(parts, ";") -- 【恢复原样】
 end
 
--- 解析导入代码，兼容 DCS1/DCS2/DCS3/DCS4
+-- 解析导入代码，兼容 DCS1/DCS2/DCS3/DCS4/DCS5
 -- 返回: success, resultType("categories" | "instances"), data
 local function ParseImportCode(str)
     if not str or str == "" then return false, "Code is empty" end
+    
+    -- 【赎罪补丁】：把你手里那个用 _||_ 导出的 DCS5 坏代码，强行转换回正常的分号格式
+    str = string.gsub(str, "_||_", ";")
+    
     local parts = {strsplit(";", str)}
     local version = parts[1]
 
-    if version == "DCS4" then
-        -- ===== DCS4: 带分类 + 难度 =====
+    if version == "DCS5" or version == "DCS4" then
+        -- ===== DCS4 / DCS5: 带分类 + 难度 =====
         local numCats = tonumber(parts[2])
         if not numCats then return false, "Invalid category count" end
         local newCategories = {}
@@ -317,7 +325,6 @@ local function ParseImportCode(str)
         return false, "Invalid format"
     end
 end
-
 -- ==========================================
 -- 打开编辑器 UI
 -- ==========================================
@@ -630,9 +637,12 @@ function addon:OpenEditor()
                 idEdit:SetRelativeWidth(0.5)
                 scroll:AddChild(idEdit)
 
+                local selectedInstType = "" -- 新增变量
                 local selectedDiffId = ""
                 local selectedDiffShort = ""
-                CreateDifficultyDropdowns(scroll, "", function(diffId, shortName)
+                -- 传入 selectedInstType
+                CreateDifficultyDropdowns(scroll, selectedInstType, "", function(instType, diffId, shortName)
+                    selectedInstType = instType
                     selectedDiffId = diffId
                     selectedDiffShort = shortName
                 end)
@@ -660,6 +670,7 @@ function addon:OpenEditor()
                         table.insert(cat.instances, {
                             name = nameStr,
                             id = idEdit:GetText() or "",
+                            instType = selectedInstType, -- 保存类型
                             difficultyId = selectedDiffId,
                             difficulty = selectedDiffShort,
                             isActive = true,
@@ -774,7 +785,8 @@ function addon:OpenEditor()
                     end)
                     scroll:AddChild(idEdit)
 
-                    CreateDifficultyDropdowns(scroll, inst.difficultyId or "", function(diffId, shortName)
+                    CreateDifficultyDropdowns(scroll, inst.instType, inst.difficultyId or "", function(instType, diffId, shortName)
+                        inst.instType = instType
                         inst.difficultyId = diffId
                         inst.difficulty = shortName
                         frame:RefreshTree(catIndex .. "\001" .. instIndex)

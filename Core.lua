@@ -12,11 +12,33 @@ local defaultDB = {
             smartExpand = true,
             singleExpand = true,
             locked = false,
-            windowWidth = 300
+            windowWidth = 300,
+            windowPoint = "RIGHT",
+            windowX = -300,
+            windowY = 50,
+            minimapPos = 225,
         },
-        categories = {}  -- 新结构：{ { name="分类名", instances={...} }, ... }
+        minimap = {
+            hide = false,
+            minimapPos = 135,
+        },
+
+        categories = {}
     }
 }
+
+-- ==========================================
+-- 新增：数据结构校验函数，防止配置文件重置时 categories 丢失
+-- ==========================================
+function addon:ValidateDB()
+    local L = addon.L
+    if not addon.db.profile.categories then
+        addon.db.profile.categories = {}
+    end
+    if #addon.db.profile.categories == 0 then
+        table.insert(addon.db.profile.categories, { name = L["Default"], instances = {} })
+    end
+end
 
 addon.frame:RegisterEvent("ADDON_LOADED")
 addon.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -24,28 +46,57 @@ addon.frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 addon.frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 addon.frame:RegisterEvent("ENCOUNTER_START")
 
+
 addon.frame:SetScript("OnEvent", function(self, event, arg1, arg2)
     if event == "ADDON_LOADED" and arg1 == addonName then
         addon.db = AceDB:New("DungeonCheatsheetDB", defaultDB, true)
 
-        -- ========== 旧数据迁移：instances[] -> categories[].instances[] ==========
+        -- ========== 旧数据迁移 ==========
         local L = addon.L
         if addon.db.profile.instances and #addon.db.profile.instances > 0 then
-            -- 旧版有 instances 数据，迁移到第一个分类
-            if not addon.db.profile.categories or #addon.db.profile.categories == 0 then
-                addon.db.profile.categories = {}
-            end
-            -- 创建"默认"分类，把旧副本全部放进去
+            addon.db.profile.categories = {}
             table.insert(addon.db.profile.categories, 1, {
                 name = L["Default"],
                 instances = addon.db.profile.instances
             })
             addon.db.profile.instances = nil
         end
-        -- 如果迁移后/全新安装后没有任何分类，创建一个空的默认分类
-        if not addon.db.profile.categories or #addon.db.profile.categories == 0 then
-            addon.db.profile.categories = { { name = L["Default"], instances = {} } }
+        
+        -- 初始化或迁移完成后，统一执行校验补全
+        addon:ValidateDB()
+
+        -- =======================================================
+        -- 标准小地图按钮 (LibDBIcon) 集中初始化
+        -- =======================================================
+        local LDB = LibStub("LibDataBroker-1.1", true)
+        local icon = LibStub("LibDBIcon-1.0", true)
+
+        if LDB and icon then
+            local DungeonCheatsheetLDB = LDB:NewDataObject("DungeonCheatsheet", {
+                type = "data source",
+                text = "Dungeon Cheatsheet",
+                icon = "Interface\\Icons\\INV_Scroll_03",
+                OnClick = function(self, button)
+                    if button == "LeftButton" then
+                        if InCombatLockdown() then
+                            print("|cffff0000[DungeonCheatsheet]|r 战斗中无法打开设置面板。")
+                        else
+                            addon:OpenMainGUI()
+                        end
+                    end
+                end,
+                OnTooltipShow = function(tooltip)
+                    tooltip:AddLine("Dungeon Cheatsheet")
+                    tooltip:AddLine(L["Left-click to open settings"] or "左键点击打开设置", 1, 1, 1)
+                end,
+            })
+            -- 注册按钮，并绑定配置表里的坐标数据
+            icon:Register("DungeonCheatsheet", DungeonCheatsheetLDB, addon.db.profile.minimap)
+        else
+            -- 核心排错：如果没有显示，一定会在聊天框报出这行红字！
+            print("|cffff0000[DungeonCheatsheet] 错误：缺少 LibDataBroker 或 LibDBIcon 库文件，小地图按钮加载失败！请检查 Libs 文件夹。|r")
         end
+        -- =======================================================
 
         addon.db.RegisterCallback(addon, "OnProfileChanged", "RefreshConfig")
         addon.db.RegisterCallback(addon, "OnProfileCopied", "RefreshConfig")
@@ -70,6 +121,7 @@ addon.frame:SetScript("OnEvent", function(self, event, arg1, arg2)
 end)
 
 function addon:RefreshConfig()
+    addon:ValidateDB() -- 核心修复：切换/重置配置后，立刻校验补全数据
     addon:CheckInstance()
     addon:UpdateWindowLock()
     if addon.editorFrame and addon.editorFrame:IsShown() then
@@ -125,3 +177,4 @@ function addon:CheckInstance()
         addon:HideWindow()
     end
 end
+

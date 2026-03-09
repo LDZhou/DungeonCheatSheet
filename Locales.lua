@@ -117,4 +117,7 @@ if locale == "zhCN" or locale == "zhTW" then
     L["Import successful! Added %d categories."] = "导入成功！已成功添加 %d 个分类。"
     L["Import successful! Added %d dungeons to '%s'."] = "导入成功！已添加 %d 个副本到分类 '%s'。"
     L["No categories available for export."] = "当前没有任何分类可供导出。"
+    L["Left-click to open settings"] = "左键点击打开设置"
+    L["Right-click to drag"] = "按住右键拖拽"
+    L["Show Minimap Button"] = "显示小地图按钮"
 end

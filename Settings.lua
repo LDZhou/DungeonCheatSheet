@@ -164,6 +164,21 @@ local options = {
                                 addon:CheckInstance() 
                             end,
                             order = 6,
+                        },
+                        minimap_btn = {
+                            type = "toggle",
+                            name = L["Show Minimap Button"] or "显示小地图按钮",
+                            width = "full",
+                            get = function() return not addon.db.profile.minimap.hide end,
+                            set = function(info, val)
+                                addon.db.profile.minimap.hide = not val
+                                if addon.db.profile.minimap.hide then
+                                    LibStub("LibDBIcon-1.0"):Hide("DungeonCheatsheet")
+                                else
+                                    LibStub("LibDBIcon-1.0"):Show("DungeonCheatsheet")
+                                end
+                            end,
+                            order = 7,
                         }
                     }
                 }
@@ -184,6 +199,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         local profileOptions = AceDBOptions:GetOptionsTable(addon.db)
         profileOptions.order = 2
         options.args.profiles_tab = profileOptions
+        profileOptions.args.reset.hidden = true -- 隐藏重置按钮，避免误操作
 
         AceConfig:RegisterOptionsTable("DungeonCheatsheet", options)
         
