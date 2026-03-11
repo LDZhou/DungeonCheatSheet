@@ -122,4 +122,11 @@ if locale == "zhCN" or locale == "zhTW" then
     L["Show Minimap Button"] = "显示小地图按钮"
     L["Click to import Midnight Season 1 Mythic+ Boss Guide"] = "点击导入至暗之夜第一赛季大秘境极简Boss攻略"
     L["Click to import Midnight 8 Mythic Dungeons Boss Guide"] = "点击导入至暗之夜8个史诗难度副本极简Boss攻略"
+    L["Chat Output"] = "聊天输出"
+    L["Enable sending guide to chat channel"] = "开启攻略发送到聊天频道"
+    L["Send to"] = "发送到"
+    L["Say"] = "当前"
+    L["Party"] = "队伍"
+    L["Raid"] = "团队"
+    L["Instance"] = "副本"
 end

@@ -85,6 +85,39 @@ local options = {
                         }
                     }
                 },
+                chat_output = {
+                    type = "group",
+                    name = L["Chat Output"],
+                    inline = true,
+                    order = 2.5,
+                    args = {
+                        enable_chat_send = {
+                            type = "toggle",
+                            name = L["Enable sending guide to chat channel"],
+                            width = "full",
+                            get = function() return addon.db.profile.settings.enableChatSend end,
+                            set = function(info, val)
+                                addon.db.profile.settings.enableChatSend = val
+                                addon:CheckInstance() -- 刷新窗口以显示/隐藏小喇叭
+                            end,
+                            order = 1,
+                        },
+                        chat_channel = {
+                            type = "select",
+                            name = L["Send to"],
+                            values = {
+                                ["SAY"] = L["Say"],
+                                ["PARTY"] = L["Party"],
+                                ["RAID"] = L["Raid"],
+                                ["INSTANCE_CHAT"] = L["Instance"],
+                            },
+                            get = function() return addon.db.profile.settings.chatChannel end,
+                            set = function(info, val) addon.db.profile.settings.chatChannel = val end,
+                            hidden = function() return not addon.db.profile.settings.enableChatSend end, -- 没打勾时隐藏
+                            order = 2,
+                        }
+                    }
+                },
                 appearance = {
                     type = "group",
                     name = L["Appearance & Testing"],

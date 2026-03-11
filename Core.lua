@@ -17,6 +17,9 @@ local defaultDB = {
             windowX = -300,
             windowY = 50,
             minimapPos = 225,
+
+            enableChatSend = false,
+            chatChannel = "PARTY",
         },
         minimap = {
             hide = false,

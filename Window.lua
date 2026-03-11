@@ -171,17 +171,44 @@ local function UpdateLayout()
 
             if frame.isExpanded then
                 frame:SetAlpha(1.0)
-                frame.noteText:Show()
-                local textHeight = frame.noteText:GetStringHeight()
                 
-                -- 兜底保险：如果引擎还是犯病返回0，给个最低基础高度
+                -- 判断是否启用了发送到聊天频道
+                if db.enableChatSend then
+                    frame.speakerBtn:Show()
+                    frame.speakerBtn:ClearAllPoints()
+                    frame.speakerBtn:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
+                    
+                    frame.noteText:ClearAllPoints()
+                    -- 文本靠右侧挪出 20 像素的距离给小喇叭
+                    frame.noteText:SetPoint("TOPLEFT", frame.speakerBtn, "TOPRIGHT", 4, 0)
+                    frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
+                    frame.noteText:SetWidth(windowWidth - 40 - 20)
+                else
+                    frame.speakerBtn:Hide()
+                    frame.noteText:ClearAllPoints()
+                    frame.noteText:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
+                    frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
+                    frame.noteText:SetWidth(windowWidth - 40)
+                end
+
+                frame.noteText:Show()
+                
+                -- 黑科技强制重排版...
+                frame.noteText:SetText(frame.targetData.note)
+                
+                local textHeight = frame.noteText:GetStringHeight()
+                -- 兜底保险...
                 if textHeight == 0 and frame.targetData.note and frame.targetData.note ~= "" then
                     textHeight = db.fontSize * 2
                 end
                 
+                -- 如果文本高度不如小喇叭高，至少保证能包住小喇叭（16像素）
+                textHeight = math.max(textHeight, 16)
+                
                 frame:SetHeight(30 + textHeight + 10)
             else
                 frame:SetAlpha(db.collapsedAlpha)
+                frame.speakerBtn:Hide()
                 frame.noteText:Hide()
                 frame:SetHeight(30)
             end
@@ -247,9 +274,32 @@ function addon:ShowWindow(instanceData)
                 
                 frame.titleBtn = btn
 
+                -- 新增：小喇叭发送按钮
+                local speakerBtn = CreateFrame("Button", nil, frame)
+                speakerBtn:SetSize(16, 16)
+                -- 使用暴雪自带的聊天气泡图标
+                speakerBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
+                speakerBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+                speakerBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+                
+                speakerBtn:SetScript("OnClick", function()
+                    local text = frame.targetData.note or ""
+                    if text == "" then return end
+                    
+                    -- 【修复1】：先把用户笔记里自带的半角 '|' 替换成全角，防止原生笔记引发报错
+                    text = string.gsub(text, "|", "｜")
+                    
+                    -- 【修复2】：处理换行，并使用全角 ' ｜ '（注意这里是全角符号）
+                    text = string.gsub(text, "\r\n", "\n")
+                    text = string.gsub(text, "\n", " ｜ ")
+                    
+                    local channel = addon.db.profile.settings.chatChannel or "PARTY"
+                    SendChatMessage("[攻略] " .. text, channel)
+                end)
+                frame.speakerBtn = speakerBtn
+
+                -- 调整原本的文本框
                 local note = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-                note:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 10, -5)
-                note:SetPoint("TOPRIGHT", btn, "BOTTOMRIGHT", -10, -5)
                 note:SetJustifyH("LEFT")
                 note:SetWordWrap(true)
                 frame.noteText = note
