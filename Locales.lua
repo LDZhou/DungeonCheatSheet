@@ -131,4 +131,5 @@ if locale == "zhCN" or locale == "zhTW" then
     L["Instance"] = "副本"
     L["Cannot send message during combat."] = "战斗中无法发送消息。"
     L["Failed to send message: "] = "发送失败："
+    L["[Guide] "] = "[攻略] "
 end

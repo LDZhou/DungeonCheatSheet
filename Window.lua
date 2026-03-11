@@ -296,7 +296,7 @@ function addon:ShowWindow(instanceData)
                     text = string.gsub(text, "\n", " ｜ ")
                     
                     local channel = addon.db.profile.settings.chatChannel or "PARTY"
-                    local ok, err = pcall(SendChatMessage, "[攻略] " .. text, channel)
+                    local ok, err = pcall(SendChatMessage, addon.L["[Guide] "] .. text, channel)
                     if not ok then
                         print("|cffff0000[DungeonCheatsheet]|r " .. (addon.L["Failed to send message: "] or "发送失败：") .. tostring(err))
                     end
