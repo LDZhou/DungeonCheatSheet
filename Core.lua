@@ -107,6 +107,9 @@ addon.frame:SetScript("OnEvent", function(self, event, arg1, arg2)
 
     elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
         addon:CheckInstance()
+        -- 延迟重试，防止 GetInstanceInfo 数据未就绪
+        C_Timer.After(1, function() addon:CheckInstance() end)
+        C_Timer.After(3, function() addon:CheckInstance() end)
         if event == "PLAYER_ENTERING_WORLD" then
             addon:UpdateWindowLock()
         end

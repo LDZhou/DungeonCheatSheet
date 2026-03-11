@@ -286,15 +286,20 @@ function addon:ShowWindow(instanceData)
                     local text = frame.targetData.note or ""
                     if text == "" then return end
                     
-                    -- 【修复1】：先把用户笔记里自带的半角 '|' 替换成全角，防止原生笔记引发报错
-                    text = string.gsub(text, "|", "｜")
+                    if InCombatLockdown() then
+                        print("|cffff0000[DungeonCheatsheet]|r " .. (addon.L["Cannot send message during combat."] or "战斗中无法发送消息。"))
+                        return
+                    end
                     
-                    -- 【修复2】：处理换行，并使用全角 ' ｜ '（注意这里是全角符号）
+                    text = string.gsub(text, "|", "｜")
                     text = string.gsub(text, "\r\n", "\n")
                     text = string.gsub(text, "\n", " ｜ ")
                     
                     local channel = addon.db.profile.settings.chatChannel or "PARTY"
-                    SendChatMessage("[攻略] " .. text, channel)
+                    local ok, err = pcall(SendChatMessage, "[攻略] " .. text, channel)
+                    if not ok then
+                        print("|cffff0000[DungeonCheatsheet]|r " .. (addon.L["Failed to send message: "] or "发送失败：") .. tostring(err))
+                    end
                 end)
                 frame.speakerBtn = speakerBtn
 
