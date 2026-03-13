@@ -1,8 +1,8 @@
-## Interface: 120001
+## Interface: 120001,120005
 ## Title: DungeonCheatsheet
 ## Notes: Dungeon Target & Note Memo
 ## Author: Yishi
-## Version: 1.0.1
+## Version: 1.0.4
 ## SavedVariables: DungeonCheatsheetDB
 
 embeds.xml
