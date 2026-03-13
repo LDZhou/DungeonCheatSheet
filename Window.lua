@@ -144,9 +144,33 @@ mainWindow:HookScript("OnHide", function() hoverWatcher:Hide() end)
 
 
 -- ==========================================
+-- 全局隐藏/展开 按钮
+-- ==========================================
+local toggleGuideBtn = CreateFrame("Button", nil, mainWindow)
+toggleGuideBtn:SetSize(80, 20)
+-- Button 默认没有背景材质，因此自带透明底
+toggleGuideBtn:SetNormalFontObject("GameFontDisable") -- 默认字体略灰，不喧宾夺主
+toggleGuideBtn:SetHighlightFontObject("GameFontHighlight") -- 悬停时高亮
+toggleGuideBtn:SetText("隐藏攻略")
+
+local UpdateLayout -- 提前声明排版函数，方便按钮调用
+
+toggleGuideBtn:SetScript("OnClick", function()
+    mainWindow.isGuideHidden = not mainWindow.isGuideHidden
+    UpdateLayout()
+end)
+
+-- ==========================================
 -- 核心排版函数
 -- ==========================================
-local function UpdateLayout()
+UpdateLayout = function()
+    local left = mainWindow:GetLeft()
+    local top = mainWindow:GetTop()
+    if left and top then
+        mainWindow:ClearAllPoints()
+        mainWindow:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    end
+
     local currentY = -40
     local db = addon.db.profile.settings
     local windowWidth = mainWindow:GetWidth()
@@ -154,70 +178,87 @@ local function UpdateLayout()
     mainWindow.bg:SetColorTexture(db.bgR, db.bgG, db.bgB, db.bgA)
     titleText:SetWidth(windowWidth - 20)
 
-    for i, frame in ipairs(targetFrames) do
-        -- 【关键修复】使用 inUse 代替 IsShown() 判断
-        if frame.inUse then
-            frame:Show()
-            frame:ClearAllPoints()
-            frame:SetPoint("TOPLEFT", 10, currentY)
-            frame:SetWidth(windowWidth - 20)
-            
-            frame.titleBtn:GetFontString():SetFont(db.font, db.fontSize + 2, "OUTLINE")
-            frame.noteText:SetFont(db.font, db.fontSize, "NONE")
-            frame.noteText:SetWidth(windowWidth - 40)
-            
-            -- 【黑科技】强制重新填入文本，迫使引擎基于最新宽度立即计算换行高度
-            frame.noteText:SetText(frame.targetData.note)
-
-            if frame.isExpanded then
-                frame:SetAlpha(1.0)
-                
-                -- 判断是否启用了发送到聊天频道
-                if db.enableChatSend then
-                    frame.speakerBtn:Show()
-                    frame.speakerBtn:ClearAllPoints()
-                    frame.speakerBtn:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
-                    
-                    frame.noteText:ClearAllPoints()
-                    -- 文本靠右侧挪出 20 像素的距离给小喇叭
-                    frame.noteText:SetPoint("TOPLEFT", frame.speakerBtn, "TOPRIGHT", 4, 0)
-                    frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
-                    frame.noteText:SetWidth(windowWidth - 40 - 20)
-                else
-                    frame.speakerBtn:Hide()
-                    frame.noteText:ClearAllPoints()
-                    frame.noteText:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
-                    frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
-                    frame.noteText:SetWidth(windowWidth - 40)
-                end
-
-                frame.noteText:Show()
-                
-                -- 黑科技强制重排版...
-                frame.noteText:SetText(frame.targetData.note)
-                
-                local textHeight = frame.noteText:GetStringHeight()
-                -- 兜底保险...
-                if textHeight == 0 and frame.targetData.note and frame.targetData.note ~= "" then
-                    textHeight = db.fontSize * 2
-                end
-                
-                -- 如果文本高度不如小喇叭高，至少保证能包住小喇叭（16像素）
-                textHeight = math.max(textHeight, 16)
-                
-                frame:SetHeight(30 + textHeight + 10)
-            else
-                frame:SetAlpha(db.collapsedAlpha)
-                frame.speakerBtn:Hide()
-                frame.noteText:Hide()
-                frame:SetHeight(30)
-            end
-            currentY = currentY - frame:GetHeight() - 5
-        else
+    -- 如果处于隐藏状态
+    if mainWindow.isGuideHidden then
+        -- 1. 隐藏所有首领信息框架
+        for i, frame in ipairs(targetFrames) do
             frame:Hide()
         end
+        
+        -- 2. 按钮移到副本标题下方，并变成“展开攻略”
+        toggleGuideBtn:SetText("展开攻略")
+        toggleGuideBtn:ClearAllPoints()
+        toggleGuideBtn:SetPoint("TOP", titleText, "BOTTOM", 0, -5)
+        toggleGuideBtn:Show()
+        
+        -- 3. 窗口高度缩减（只保留标题和这个小按钮的高度）
+        mainWindow:SetHeight(math.abs(-40 - 25))
+    
+    -- 如果处于展开状态
+    else
+        toggleGuideBtn:SetText("隐藏攻略")
+
+        for i, frame in ipairs(targetFrames) do
+            if frame.inUse then
+                frame:Show()
+                frame:ClearAllPoints()
+                frame:SetPoint("TOPLEFT", 10, currentY)
+                frame:SetWidth(windowWidth - 20)
+                
+                frame.titleBtn:GetFontString():SetFont(db.font, db.fontSize + 2, "OUTLINE")
+                frame.noteText:SetFont(db.font, db.fontSize, "NONE")
+                frame.noteText:SetWidth(windowWidth - 40)
+                
+                -- 强制填入文本计算高度
+                frame.noteText:SetText(frame.targetData.note)
+
+                if frame.isExpanded then
+                    frame:SetAlpha(1.0)
+                    if db.enableChatSend then
+                        frame.speakerBtn:Show()
+                        frame.speakerBtn:ClearAllPoints()
+                        frame.speakerBtn:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
+                        
+                        frame.noteText:ClearAllPoints()
+                        frame.noteText:SetPoint("TOPLEFT", frame.speakerBtn, "TOPRIGHT", 4, 0)
+                        frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
+                        frame.noteText:SetWidth(windowWidth - 40 - 20)
+                    else
+                        frame.speakerBtn:Hide()
+                        frame.noteText:ClearAllPoints()
+                        frame.noteText:SetPoint("TOPLEFT", frame.titleBtn, "BOTTOMLEFT", 10, -5)
+                        frame.noteText:SetPoint("TOPRIGHT", frame.titleBtn, "BOTTOMRIGHT", -10, -5)
+                        frame.noteText:SetWidth(windowWidth - 40)
+                    end
+
+                    frame.noteText:Show()
+                    frame.noteText:SetText(frame.targetData.note)
+                    
+                    local textHeight = frame.noteText:GetStringHeight()
+                    if textHeight == 0 and frame.targetData.note and frame.targetData.note ~= "" then
+                        textHeight = db.fontSize * 2
+                    end
+                    textHeight = math.max(textHeight, 16)
+                    frame:SetHeight(30 + textHeight + 10)
+                else
+                    frame:SetAlpha(db.collapsedAlpha)
+                    frame.speakerBtn:Hide()
+                    frame.noteText:Hide()
+                    frame:SetHeight(30)
+                end
+                currentY = currentY - frame:GetHeight() - 5
+            else
+                frame:Hide()
+            end
+        end
+        
+        -- 排版完成后，把按钮吸附在最下方（所有首领信息的下面）
+        toggleGuideBtn:ClearAllPoints()
+        toggleGuideBtn:SetPoint("TOP", mainWindow, "TOP", 0, currentY)
+        toggleGuideBtn:Show()
+        
+        mainWindow:SetHeight(math.abs(currentY) + 25)
     end
-    mainWindow:SetHeight(math.abs(currentY) + 10)
 end
 
 -- ==========================================
@@ -237,6 +278,7 @@ mainWindow:SetScript("OnSizeChanged", function(self, width, height)
 end)
 
 function addon:ShowWindow(instanceData)
+    mainWindow.isGuideHidden = false -- 每次显示窗口时重置为展开状态，避免上次的隐藏状态影响当前显示
     -- 从数据库恢复窗口宽度
     if addon.db and addon.db.profile.settings.windowWidth then
         mainWindow:SetWidth(addon.db.profile.settings.windowWidth)
@@ -341,24 +383,40 @@ function addon:HideWindow()
     mainWindow:Hide()
 end
 
--- ==========================================
--- 智能匹配并展开目标 (支持名字模糊匹配和首领战ID精准匹配)
--- ==========================================
 function addon:SmartExpandTarget(unitName, encounterId)
-    if not mainWindow:IsShown() or not unitName then return end
+    if not mainWindow:IsShown() then return end
     
-    local safeName = unitName and strlower(unitName) or ""
-    if safeName == "" then return end
+    -- 安全处理名字字符串
+    local safeName = ""
+    if unitName then
+        local ok, lowerName = pcall(strlower, unitName)
+        if ok and type(lowerName) == "string" then
+            safeName = lowerName
+        end
+    end
 
+    -- 安全处理ID字符串
+    local encStr = ""
+    if encounterId then
+        local encOk, tempStr = pcall(tostring, encounterId)
+        if encOk and type(tempStr) == "string" then
+            encStr = tempStr
+        end
+    end
     
+    -- 如果两个都没传进来或者都无效，直接结束
+    if safeName == "" and encStr == "" then return end
+
     for i, frame in ipairs(targetFrames) do
-        if frame:IsShown() and frame.targetData then
+        if frame.inUse and frame.targetData then
             local tData = frame.targetData
             local matchFound = false
             
-            if tData.encounterId and tData.encounterId ~= "" and encounterId and tData.encounterId == tostring(encounterId) then
+            -- 优先匹配：首领战ID
+            if encStr ~= "" and tData.encounterId and tData.encounterId ~= "" and tData.encounterId == encStr then
                 matchFound = true
-            elseif tData.name and tData.name ~= "" then
+            -- 次级匹配：选中目标的名字
+            elseif safeName ~= "" and tData.name and tData.name ~= "" then
                 local n1 = strlower(tData.name)
                 if string.find(n1, safeName, 1, true) or string.find(safeName, n1, 1, true) then
                     matchFound = true
@@ -366,6 +424,8 @@ function addon:SmartExpandTarget(unitName, encounterId)
             end
             
             if matchFound then
+                mainWindow.isGuideHidden = false -- 匹配到时自动解除全局隐藏状态
+
                 if addon.db.profile.settings.singleExpand then
                     if not frame.isExpanded then
                         for _, f in ipairs(targetFrames) do f.isExpanded = false end
@@ -378,7 +438,7 @@ function addon:SmartExpandTarget(unitName, encounterId)
                         UpdateLayout()
                     end
                 end
-                break
+                break -- 匹配到后跳出循环
             end
         end
     end

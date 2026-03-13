@@ -115,7 +115,11 @@ addon.frame:SetScript("OnEvent", function(self, event, arg1, arg2)
         end
     elseif event == "PLAYER_TARGET_CHANGED" then
         if addon.db.profile.settings.smartExpand and UnitExists("target") then
-            addon:SmartExpandTarget(UnitName("target"))
+            -- 修复：只提取第一个返回值(名字)，丢弃第二个返回值(服务器名)
+            local targetName = UnitName("target")
+            if targetName then
+                addon:SmartExpandTarget(targetName)
+            end
         end
     elseif event == "ENCOUNTER_START" then
         local encounterID = arg1
@@ -147,9 +151,12 @@ end
 -- ========== 遍历所有分类下的所有副本来匹配当前区域 ==========
 function addon:CheckInstance()
     local name, _, difficultyID, _, _, _, _, id = GetInstanceInfo()
-    local matchedInstance = nil
+    local bestMatch = nil
+    local bestScore = 0
 
     if id or name then
+        local currentDiff = tostring(difficultyID)
+        
         for _, cat in ipairs(addon.db.profile.categories) do
             for _, inst in ipairs(cat.instances or {}) do
                 -- 先匹配副本名/副本ID
@@ -160,25 +167,31 @@ function addon:CheckInstance()
                 end
                 
                 if nameOrIdMatch and inst.isActive ~= false then
-                    -- 再匹配难度：如果副本设置了难度ID，必须一致才算匹配
-                    if inst.difficultyId and inst.difficultyId ~= "" then
-                        if tostring(difficultyID) == inst.difficultyId then
-                            matchedInstance = inst
+                    local score = 0
+                    local instDiff = (inst.difficultyId and inst.difficultyId ~= "") and tostring(inst.difficultyId) or nil
+                    
+                    if instDiff then
+                        if instDiff == currentDiff then
+                            score = 3 -- 最高优先级：难度完全精确匹配
+                        elseif currentDiff == "23" and instDiff == "8" then
+                            score = 2 -- 降级匹配：玩家在史诗(23)难度，且攻略是史诗+(8)，作为备选
                         end
-                        -- 难度不匹配时不选中，继续找下一个
                     else
-                        -- 没填难度ID：任何难度都匹配
-                        matchedInstance = inst
+                        score = 1 -- 兜底匹配：攻略没有设置难度限制
+                    end
+                    
+                    -- 如果找到了更高优先级的匹配，则替换（这样如果同时有M和M+的攻略，M的3分会覆盖M+的2分）
+                    if score > bestScore then
+                        bestScore = score
+                        bestMatch = inst
                     end
                 end
-                if matchedInstance then break end
             end
-            if matchedInstance then break end
         end
     end
 
-    if matchedInstance then
-        addon:ShowWindow(matchedInstance)
+    if bestMatch then
+        addon:ShowWindow(bestMatch)
     else
         addon:HideWindow()
     end
