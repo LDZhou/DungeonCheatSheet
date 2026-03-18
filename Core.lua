@@ -175,6 +175,8 @@ function addon:CheckInstance()
                             score = 3 -- 最高优先级：难度完全精确匹配
                         elseif currentDiff == "23" and instDiff == "8" then
                             score = 2 -- 降级匹配：玩家在史诗(23)难度，且攻略是史诗+(8)，作为备选
+                        elseif currentDiff == "17" and instDiff == "14" then
+                            score = 2 -- 降级匹配：玩家在随机(17)难度，且攻略是普通(14)，作为备选
                         end
                     else
                         score = 1 -- 兜底匹配：攻略没有设置难度限制
