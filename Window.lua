@@ -318,7 +318,7 @@ function addon:ShowWindow(instanceData)
 
                 -- 新增：小喇叭发送按钮
                 local speakerBtn = CreateFrame("Button", nil, frame)
-                speakerBtn:SetSize(16, 16)
+                speakerBtn:SetSize(24, 24)
                 -- 使用暴雪自带的聊天气泡图标
                 speakerBtn:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
                 speakerBtn:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")

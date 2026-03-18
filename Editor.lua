@@ -559,6 +559,61 @@ function addon:OpenEditor()
             end
             -- ==========================================================
 
+            -- ========== 新增：一键导入虚影尖塔，梦境裂隙普通难度极简Boss攻略按钮 ==========
+            local locale = GetLocale()
+            -- 这里我还是保留了最外层的语言判断，如果你想让英文客户端也能看到这个按钮，就把最外层这个if去掉
+            if locale == "zhCN" or locale == "zhTW" then
+                local smallSpacer2 = AceGUI:Create("Label")
+                smallSpacer2:SetText("\n")
+                smallSpacer2:SetFullWidth(true)
+                scroll:AddChild(smallSpacer2)
+
+                local importRaidBtn = AceGUI:Create("Button")
+                importRaidBtn:SetText(L["Click to import Midnight Raid Boss Guide"])
+                importRaidBtn:SetFullWidth(true)
+                importRaidBtn:SetCallback("OnClick", function()
+                    local codeStr = ""
+                    
+                    -- 【完全恢复你原本优秀的语言判断逻辑】
+                    if locale == "zhCN" or locale == "zhTW" then
+                        codeStr = addon.MidnightRaid1_CN or ""
+                    else
+                        codeStr = addon.MidnightRaid1_EN or ""
+                    end
+
+                    if codeStr == "" then
+                        print("|cffff0000[DungeonCheatsheet]|r 导入数据为空，请确保已在代码中填入攻略字符串。")
+                        return
+                    end
+
+                    local success, resultType, data = ParseImportCode(codeStr)
+                    if success then
+                        if resultType == "categories" then
+                            for _, newCat in ipairs(data) do
+                                table.insert(addon.db.profile.categories, newCat)
+                            end
+                            print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d categories."], #data))
+                        else
+                            if #addon.db.profile.categories == 0 then
+                                table.insert(addon.db.profile.categories, { name = L["Default"], instances = {} })
+                            end
+                            local defaultCat = addon.db.profile.categories[1]
+                            for _, newInst in ipairs(data) do
+                                table.insert(defaultCat.instances, newInst)
+                            end
+                            print("|cff00ff00[DungeonCheatsheet]|r " .. string.format(L["Import successful! Added %d dungeons to '%s'."], #data, defaultCat.name))
+                        end
+                        exportSelections = {}
+                        frame:RefreshTree("new_cat")
+                        addon:CheckInstance()
+                    else
+                        print("|cffff0000[DungeonCheatsheet]|r " .. L["Import failed: "] .. tostring(resultType))
+                    end
+                end)
+                scroll:AddChild(importRaidBtn)
+            end
+            -- ==========================================================
+
 
         -- ========== 导入导出 ==========
         elseif group == "import_export" then
