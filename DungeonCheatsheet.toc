@@ -2,7 +2,7 @@
 ## Title: DungeonCheatsheet
 ## Notes: Dungeon Target & Note Memo
 ## Author: Yishi
-## Version: 1.0.4
+## Version: 1.0.5
 ## SavedVariables: DungeonCheatsheetDB
 
 embeds.xml
