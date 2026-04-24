@@ -206,7 +206,7 @@ UpdateLayout = function()
                 frame:SetWidth(windowWidth - 20)
                 
                 frame.titleBtn:GetFontString():SetFont(db.font, db.fontSize + 2, "OUTLINE")
-                frame.noteText:SetFont(db.font, db.fontSize, "NONE")
+                frame.noteText:SetFont(db.font, db.fontSize, "")
                 frame.noteText:SetWidth(windowWidth - 40)
                 
                 -- 强制填入文本计算高度
